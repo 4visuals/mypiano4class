@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <base href="https://webdevpiano.com/" />
+    <meta charset="UTF-8" />
+    <title>한글 컬러 피아노 앱 (노래 연주 및 저장 기능 포함)</title>
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+        font-family: Arial, sans-serif;
+      }
+      .input-area {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 10px;
+      }
+      #song-input {
+        width: 300px;
+        padding: 5px;
+        font-size: 16px;
+      }
+      button {
+        padding: 5px 10px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .piano {
+        display: flex;
+        background-color: #333;
+        padding: 20px;
+        border-radius: 10px;
+        position: relative;
+      }
+      .white-key {
+        width: 60px;
+        height: 200px;
+        margin: 0 2px;
+        border: none;
+        border-radius: 0 0 5px 5px;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        color: white;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+        z-index: 1;
+        position: relative;
+      }
+      .black-key {
+        width: 40px;
+        height: 120px;
+        background-color: #000;
+        position: absolute;
+        top: 20px;
+        z-index: 2;
+        border: none;
+        border-radius: 0 0 5px 5px;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.1s ease;
+      }
+      .white-key:active,
+      .black-key:active {
+        transform: scale(0.98);
+        box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+      }
+      .arrow {
+        position: absolute;
+        top: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 24px;
+        color: #ff4500;
+      }
+      .note-indicator {
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+      }
+      .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 300px;
+        text-align: center;
+      }
+      #song-list {
+        margin-top: 20px;
+        width: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="input-area">
+      <input
+        type="text"
+        id="song-input"
+        placeholder="노래의 계이름을 입력하세요 (예: 도레미파솔라시도)"
+      />
+      <button id="play-button">연주 시작</button>
+      <button id="save-button">노래 저장</button>
+    </div>
+    <select id="song-list">
+      <option value="">저장된 노래 선택</option>
+    </select>
+    <div class="piano">
+      <button
+        class="white-key"
+        data-note="도"
+        style="background-color: #ff0000"
+      >
+        도
+      </button>
+      <button class="black-key" data-note="도#" style="left: 45px">도#</button>
+      <button
+        class="white-key"
+        data-note="레"
+        style="background-color: #ffa500"
+      >
+        레
+      </button>
+      <button class="black-key" data-note="레#" style="left: 107px">레#</button>
+      <button
+        class="white-key"
+        data-note="미"
+        style="background-color: #ffff00"
+      >
+        미
+      </button>
+      <button
+        class="white-key"
+        data-note="파"
+        style="background-color: #008000"
+      >
+        파
+      </button>
+      <button class="black-key" data-note="파#" style="left: 231px">파#</button>
+      <button
+        class="white-key"
+        data-note="솔"
+        style="background-color: #87ceeb"
+      >
+        솔
+      </button>
+      <button class="black-key" data-note="솔#" style="left: 293px">솔#</button>
+      <button
+        class="white-key"
+        data-note="라"
+        style="background-color: #000080"
+      >
+        라
+      </button>
+      <button class="black-key" data-note="라#" style="left: 355px">라#</button>
+      <button
+        class="white-key"
+        data-note="시"
+        style="background-color: #8a2be2"
+      >
+        시
+      </button>
+      <button
+        class="white-key"
+        data-note="도"
+        style="background-color: #ff0000"
+      >
+        도
+      </button>
+    </div>
+
+    <div id="save-modal" class="modal">
+      <div class="modal-content">
+        <h2>노래 저장</h2>
+        <input
+          type="text"
+          id="song-title"
+          placeholder="노래 제목을 입력하세요"
+        />
+        <button id="confirm-save">저장</button>
+        <button id="cancel-save">취소</button>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script>
+      const synth = new Tone.Synth().toDestination();
+      const notes = [
+        "C4",
+        "C#4",
+        "D4",
+        "D#4",
+        "E4",
+        "F4",
+        "F#4",
+        "G4",
+        "G#4",
+        "A4",
+        "A#4",
+        "B4",
+        "C5",
+      ];
+      const keys = document.querySelectorAll(".white-key, .black-key");
+      const songInput = document.getElementById("song-input");
+      const playButton = document.getElementById("play-button");
+      const saveButton = document.getElementById("save-button");
+      const saveModal = document.getElementById("save-modal");
+      const songTitleInput = document.getElementById("song-title");
+      const confirmSaveButton = document.getElementById("confirm-save");
+      const cancelSaveButton = document.getElementById("cancel-save");
+      const songList = document.getElementById("song-list");
+
+      let currentSong = [];
+      let currentNoteIndex = 0;
+      let savedSongs = JSON.parse(localStorage.getItem("savedSongs")) || {};
+
+      keys.forEach((key, index) => {
+        key.addEventListener("click", () => {
+          playNote(key, notes[index]);
+        });
+
+        key.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          playNote(key, notes[index]);
+        });
+      });
+
+      playButton.addEventListener("click", () => {
+        currentSong = songInput.value.split("");
+        currentNoteIndex = 0;
+        showNextNote();
+      });
+
+      saveButton.addEventListener("click", () => {
+        saveModal.style.display = "block";
+      });
+
+      confirmSaveButton.addEventListener("click", () => {
+        const title = songTitleInput.value.trim();
+        if (title) {
+          savedSongs[title] = songInput.value;
+          localStorage.setItem("savedSongs", JSON.stringify(savedSongs));
+          updateSongList();
+          saveModal.style.display = "none";
+          songTitleInput.value = "";
+        } else {
+          alert("노래 제목을 입력해주세요.");
+        }
+      });
+
+      cancelSaveButton.addEventListener("click", () => {
+        saveModal.style.display = "none";
+        songTitleInput.value = "";
+      });
+
+      songList.addEventListener("change", (e) => {
+        const selectedSong = savedSongs[e.target.value];
+        if (selectedSong) {
+          songInput.value = selectedSong;
+        }
+      });
+
+      function playNote(key, note) {
+        synth.triggerAttackRelease(note, "8n");
+        if (key.dataset.note === currentSong[currentNoteIndex]) {
+          currentNoteIndex++;
+          if (currentNoteIndex < currentSong.length) {
+            showNextNote();
+          } else {
+            setTimeout(() => {
+              alert("축하합니다! 노래를 완성했어요! 👏👏👏");
+              playCheers();
+            }, 500);
+          }
+        }
+      }
+
+      function showNextNote() {
+        keys.forEach((key) => {
+          key.innerHTML = key.dataset.note;
+          key.removeAttribute("data-current");
+        });
+
+        const nextNote = currentSong[currentNoteIndex];
+        const nextKey = Array.from(keys).find(
+          (key) => key.dataset.note === nextNote
+        );
+
+        if (nextKey) {
+          nextKey.innerHTML = `${nextKey.dataset.note}<div class="arrow">↓</div><div class="note-indicator">${nextNote}</div>`;
+          nextKey.setAttribute("data-current", "true");
+        }
+      }
+
+      function playCheers() {
+        const cheerSound = new Audio(
+          "https://freesound.org/data/previews/412/412068_7416283-lq.mp3"
+        );
+        cheerSound.play();
+      }
+
+      function updateSongList() {
+        songList.innerHTML = '<option value="">저장된 노래 선택</option>';
+        for (const title in savedSongs) {
+          const option = document.createElement("option");
+          option.value = title;
+          option.textContent = title;
+          songList.appendChild(option);
+        }
+      }
+
+      const keyMap = {
+        a: 0,
+        w: 1,
+        s: 2,
+        e: 3,
+        d: 4,
+        f: 5,
+        t: 6,
+        g: 7,
+        y: 8,
+        h: 9,
+        u: 10,
+        j: 11,
+        k: 12,
+      };
+
+      document.addEventListener("keydown", (e) => {
+        const keyIndex = keyMap[e.key.toLowerCase()];
+        if (keyIndex !== undefined) {
+          const key = keys[keyIndex];
+          playNote(key, notes[keyIndex]);
+        }
+      });
+
+      updateSongList();
+    </script>
+  </body>
+</html>
